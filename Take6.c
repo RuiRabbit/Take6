@@ -14,15 +14,15 @@ void destroyalltexture();
 int main(){
 
     printf("Please enter how many enemies you want(1 ~ 9)?\n");
-    int totalplayer = 4;
-    // scanf("%d", &totalplayer);
+    int totalplayer = 9;
+    scanf("%d", &totalplayer);
     totalplayer++;
-    printf("Please set the difficulties(0 ~ ).\n");
+    printf("Please set the difficulties(0 ~ 1).\n");
     int difficulty = 0;
-    // scanf("%d", &difficulty);
+    scanf("%d", &difficulty);
     printf("Do you want to use all card(0) or only 1 ~ %d card(1)?\n", totalplayer * 10 + 4);
     int choice = 0;
-    // scanf("%d", &choice);
+    scanf("%d", &choice);
 
     GameInit(totalplayer, difficulty, choice);
     printf("Init completed\n");

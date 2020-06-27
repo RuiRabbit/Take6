@@ -32,6 +32,9 @@ void ChooseRow(int id, SDL_Renderer *renderer);
 void GameAI_rnd(int id);
 int GameAI_rnd_row(int id);
 
+void GameAI_1(int id);
+int GameAI_1_row(int id);
+
 void GamePresent(SDL_Renderer *renderer);
 
 void Loadtexture(SDL_Renderer *renderer);

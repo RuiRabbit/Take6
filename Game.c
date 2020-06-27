@@ -38,8 +38,8 @@ struct _Card{
 } buffer[10];
 //list the buffer of every player's card
 
-void (*ai[5])(int) = {GameAI_rnd};
-int (*ai_row[5])(int) = {GameAI_rnd_row};
+void (*ai[5])(int) = {GameAI_rnd, GameAI_1};
+int (*ai_row[5])(int) = {GameAI_rnd_row, GameAI_1_row};
 
 
 SDL_Texture *card[110];
@@ -48,6 +48,7 @@ SDL_Texture *wood;
 SDL_Texture *pickcard;
 SDL_Texture *pickrow;
 SDL_Texture *wait;
+SDL_Texture *gameover;
 SDL_Texture *yourcardtxt;
 SDL_Texture *arrow;
 SDL_Texture *scoreboardtxt;
@@ -65,7 +66,7 @@ SDL_Rect arrowplace[4];
 SDL_Rect scoreboardtitle;
 
 TTF_Font *font60;
-TTF_Font *font48;
+TTF_Font *font24;
 
 void CardShuffle(){
     bool used[104] = {false};
@@ -86,6 +87,7 @@ void CardShuffle(){
             now = rand() % GameSetting.totalcard;
         }
         GameTable[i][0] = now + 1;
+        used[now] = true;
         card_gived++;
         if(card_gived >= GameSetting.totalcard)
             break;
@@ -108,6 +110,11 @@ void GameInit(int totalplayer, int difficulty, int totalcard){
     }
     else{
         GameSetting.totalcard = 104;
+    }
+    for(int i = 0; i < 4; i++){
+        for(int j = 0; j < 5; j++){
+            GameTable[i][j] = 0;
+        }
     }
     for(int i = 0; i < totalplayer; i++){
         player[i].id = i;
@@ -209,13 +216,26 @@ void swap(struct _Card *a, struct _Card *b){
     return;
 }
 
+int cattlecount(int cardnum){
+    if(cardnum == 0)
+        return 0;
+    if(cardnum == 55)
+        return 7;
+    if(cardnum % 11 == 0)
+        return 5;
+    if(cardnum % 10 == 0)
+        return 3;
+    if(cardnum % 5 == 0)
+        return 2;
+    return 1;
+}
+
 void PlaceCard(SDL_Renderer *renderer){
     int endofrow[4] = {0};
     for(int i = 1; i <= GameSetting.totalplayer; i++){
         qsort((void *)buffer, GameSetting.totalplayer - i + 1, sizeof(buffer[0]), cmp);
-        printf("statment == %d\n", statment);
         GamePresent(renderer);
-        SDL_Delay(1200);
+        SDL_Delay(1300);
         for(int j = 0; j < 4; j++){
             endofrow[j] = GameTable[j][LastCardPlaceinRow(j)];
         }
@@ -235,7 +255,7 @@ void PlaceCard(SDL_Renderer *renderer){
         }
         else{
             for(int j = 0; j < 5; j++){
-                player[buffer[0].playerid].cattle += GameTable[placed][j];
+                player[buffer[0].playerid].cattle += cattlecount(GameTable[placed][j]);
                 GameTable[placed][j] = 0;
             }
             GameTable[placed][0] = buffer[0].cardid;
@@ -251,6 +271,14 @@ bool inrect(SDL_Event event, SDL_Rect rect){
     int x = event.button.x;
     int y = event.button.y;
     return (event.button.button == SDL_BUTTON_LEFT, x > rect.x && y > rect.y && x < rect.x + rect.w && y < rect.y + rect.h);
+}
+
+int rowofcattles(int row){
+    int cattle = 0;
+    for(int i = 0; i <= LastCardPlaceinRow(row); i++){
+        cattle += cattlecount(GameTable[row][i]);
+    }
+    return cattle;
 }
 
 void ChooseRow(int id, SDL_Renderer *renderer){
@@ -283,7 +311,7 @@ void ChooseRow(int id, SDL_Renderer *renderer){
         }
     }
     for(int i = 0; i < 5; i++){
-        player[id].cattle += GameTable[row][i];
+        player[id].cattle += cattlecount(GameTable[row][i]);
         GameTable[row][i] = 0;
     }
     GameTable[row][0] = buffer[0].cardid;
@@ -294,6 +322,7 @@ void Game(SDL_Renderer *renderer){
     while (!quit){
         SDL_Event event;
         GamePresent(renderer);
+        SDL_FlushEvent(SDL_MOUSEBUTTONDOWN);
         while(statment == 0){
             // printf("Running statment 0\n");
             while(SDL_PollEvent(&event)){
@@ -314,7 +343,7 @@ void Game(SDL_Renderer *renderer){
                                     player[0].card[j] = player[0].card[j + 1];
                                     player[0].card[j + 1] = tmp;
                                 }
-                                printf("choose successful\n");
+                                // printf("choose successful\n");
                                 break;
                             }
                         }
@@ -334,7 +363,7 @@ void Game(SDL_Renderer *renderer){
             // printf("OUT\n");
         }
         while(statment == 2){
-            printf("Running statment 2\n");
+            // printf("Running statment 2\n");
             void (*pick)(int) = ai[GameSetting.difficulty];
             for(int i = 1; i < GameSetting.totalplayer; i++){
                 pick(i);
@@ -364,7 +393,49 @@ int GameAI_rnd_row(int id){
     return choice;
 }
 
-int rank(const void *a, const void *b)
+void GameAI_1(int id){
+    int choice = -1;
+    for(int i = 0; i < player[i].totalcard; i++){
+        int endofrow[4] = {0};
+        for(int j = 0; j < 4; j++){
+            endofrow[j] = GameTable[j][LastCardPlaceinRow(j)];
+        }
+        int minv = 2e9;
+        int placed = -1;
+        for(int j = 0; j < 4; j++){
+            if(endofrow[j] < player[id].card[i] && player[i].card[i] - endofrow[j] < minv && LastCardPlaceinRow(j) != 4){
+                minv = player[id].card[id] - endofrow[j];
+                placed = j;
+            }
+        }
+        if(placed != -1){
+            choice = i;
+        }
+    }
+    if(choice == -1)
+        choice = rand() % player[id].totalcard;
+    buffer[id].cardid = player[id].card[choice];
+    buffer[id].playerid = id;
+    for(int i = choice; i < player[id].totalcard - 1; i++){
+        int tmp = player[id].card[i];
+        player[id].card[i] = player[id].card[i + 1];
+        player[id].card[i + 1] = tmp;
+    }
+    player[id].totalcard--;
+}
+int GameAI_1_row(int id){
+    int minv = 2e9;
+    int choice = -1;
+    for(int i = 0; i < 4; i++){
+        if(rowofcattles(i) < minv){
+            choice = i;
+            minv = rowofcattles(i);
+        }
+    }
+    return choice;
+}
+
+int rankcmp(const void *a, const void *b)
 {
     int c = *(int *)a;
     int d = *(int *)b;
@@ -385,13 +456,14 @@ void GamePresent(SDL_Renderer *renderer){
             }
             break;
         case 2:
-            printf("In case 2\n");
             sign = wait;
             break;
         
         default:
             break;
     }
+    if(player[0].totalcard <= 0)
+        sign = gameover;
 
     SDL_RenderCopy(renderer, sign, NULL, &signplace);
     for(int i = 0; i < player[0].totalcard; i++){
@@ -419,13 +491,22 @@ void GamePresent(SDL_Renderer *renderer){
     SDL_RenderCopy(renderer, scoreboardtxt, NULL, &scoreboardtitle);
 
     int rank[10] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    qsort(rank, GameSetting.totalplayer, sizeof(int), rank);
+    qsort(rank, GameSetting.totalplayer, sizeof(int), rankcmp);
     for(int i = 0; i < GameSetting.totalplayer; i++){
         SDL_Surface *tmp = NULL;
         SDL_Rect rect;
+        SDL_Texture *txt;
         char data[100];
-        sprintf(data, "Player %d : %3d", rank[i], player[rank[i]].cattle);
-        tmp = TTF_RenderText_Solid(font48, "")
+        sprintf(data, "Player %d  : %3d", rank[i], player[rank[i]].cattle);
+        tmp = TTF_RenderText_Solid(font24, data, player[rank[i]].color);
+        txt = SDL_CreateTextureFromSurface(renderer, tmp);
+        rect.h = tmp->h;
+        rect.w = tmp->w;
+        SDL_FreeSurface(tmp);
+        rect.x = 1170;
+        rect.y = 260 + i * 45;
+        SDL_RenderCopy(renderer, txt, NULL, &rect);
+        SDL_DestroyTexture(txt);
     }
     SDL_RenderPresent(renderer);
 }
@@ -452,8 +533,12 @@ void Loadtexture(SDL_Renderer *renderer){
     wait = SDL_CreateTextureFromSurface(renderer, tmp);
     SDL_FreeSurface(tmp);
 
+    tmp = IMG_Load("source/gameover_sign.png");
+    gameover = SDL_CreateTextureFromSurface(renderer, tmp);
+    SDL_FreeSurface(tmp);
+
     font60 = TTF_OpenFont("source/ERASDEMI.TTF", 60);
-    font48 = TTF_OpenFont("source/ERASDEMI.TTF", 48);
+    font24 = TTF_OpenFont("source/ERASDEMI.TTF", 24);
     tmp = TTF_RenderText_Solid( font60, "Your Card", (SDL_Color){255, 255, 255, 255});
     yourcardtxt = SDL_CreateTextureFromSurface(renderer, tmp);
     yourcard.h = tmp->h;
@@ -487,11 +572,12 @@ void destroyallsource(){
     SDL_DestroyTexture(pickcard);
     SDL_DestroyTexture(pickrow);
     SDL_DestroyTexture(wait);
+    SDL_DestroyTexture(gameover);
     SDL_DestroyTexture(arrow);
     for(int i = 1; i <= 104; i++){
         SDL_DestroyTexture(card[i]);
     }
     SDL_DestroyTexture(yourcardtxt);
-    TTF_Closefont(font60);
-    TTF_Closefont(font48);
+    TTF_CloseFont(font60);
+    TTF_CloseFont(font24);
 }
