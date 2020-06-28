@@ -15,13 +15,15 @@ struct _Player;
 
 void CardShuffle();
 
-void GameInit(int num, int difficulty, int totalcard);
+void GameInit(int num, int difficulty, int totalcard, int speed);
 
 void Game(SDL_Renderer *renderer);
 
 void GamePresent(SDL_Renderer *renderer);
 
 int LastCardPlaceinRow(int row);
+
+int rowofcattles(int row);
 
 void sort(int a[], int n);
 
@@ -34,6 +36,9 @@ int GameAI_rnd_row(int id);
 
 void GameAI_1(int id);
 int GameAI_1_row(int id);
+
+void GameAI_2(int id);
+int GameAI_2_row(int id);
 
 void GamePresent(SDL_Renderer *renderer);
 

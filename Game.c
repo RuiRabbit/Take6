@@ -30,6 +30,7 @@ struct _GameSetting{
     int totalplayer;
     int difficulty;
     int totalcard;
+    int speed;
 } GameSetting;
 
 struct _Card{
@@ -38,8 +39,8 @@ struct _Card{
 } buffer[10];
 //list the buffer of every player's card
 
-void (*ai[5])(int) = {GameAI_rnd, GameAI_1};
-int (*ai_row[5])(int) = {GameAI_rnd_row, GameAI_1_row};
+void (*ai[5])(int) = {GameAI_rnd, GameAI_1, GameAI_2};
+int (*ai_row[5])(int) = {GameAI_rnd_row, GameAI_1_row, GameAI_2_row};
 
 
 SDL_Texture *card[110];
@@ -68,6 +69,7 @@ SDL_Rect scoreboardtitle;
 TTF_Font *font60;
 TTF_Font *font24;
 
+//shuffle card
 void CardShuffle(){
     bool used[104] = {false};
     int card_gived = 0;
@@ -95,15 +97,30 @@ void CardShuffle(){
     for(int i = 0; i < GameSetting.totalplayer; i++){
         sort(player[i].card, 10);
     }
-    buffer[0].cardid = 0;
-    buffer[0].playerid = 0;
+    // for(int i = 0; i < GameSetting.totalplayer; i++){
+    //     printf("Player %d :", i);
+    //     for(int j = 0; j < 10; j++){
+    //         printf(" %d", player[i].card[j]);
+    //     }
+    //     printf("\n");
+    // }
     // printf("GameTable 0 0 -> %d\n", GameTable[0][0]);
     return;
 }
 
-void GameInit(int totalplayer, int difficulty, int totalcard){
+// init the game
+void GameInit(int totalplayer, int difficulty, int totalcard, int speed){
     GameSetting.totalplayer = totalplayer;
     GameSetting.difficulty = difficulty;
+    if(speed == 0){
+        GameSetting.speed = 700;
+    }
+    else if(speed == 1){
+        GameSetting.speed = 1000;
+    }
+    else{
+        GameSetting.speed = 1300;
+    }
     statment = 0;
     if(totalcard){
         GameSetting.totalcard = totalplayer * 10 + 4;
@@ -121,6 +138,11 @@ void GameInit(int totalplayer, int difficulty, int totalcard){
         player[i].color = (SDL_Color){playercolor[i][0], playercolor[i][1], playercolor[i][2], 255};
         player[i].totalcard = 10;
         player[i].cattle = 0;
+    }
+
+    for(int i = 0; i < 10; i++){
+        buffer[i].cardid = 0;
+        buffer[i].playerid = 0;
     }
     for(int i = 0; i < 10; i++){
         mycard[i].h = 106;
@@ -180,6 +202,7 @@ void GameInit(int totalplayer, int difficulty, int totalcard){
     CardShuffle(totalplayer);
 }
 
+// select sort
 void sort(int a[], int n){
     for(int i = 0; i < n; i++){
         for(int j = i + 1; j < n; j++){
@@ -192,6 +215,7 @@ void sort(int a[], int n){
     }
 }
 
+// find the last card index in row
 int LastCardPlaceinRow(int row){
     if(GameTable[row][0] == 0)
         return -1;
@@ -202,6 +226,7 @@ int LastCardPlaceinRow(int row){
     return 4;
 }
 
+// cmp for _Card
 int cmp(const void *a, const void *b)
 {
     struct _Card c = *(struct _Card *)a;
@@ -209,6 +234,7 @@ int cmp(const void *a, const void *b)
     return c.cardid - d.cardid;
 }
 
+// swap _Card
 void swap(struct _Card *a, struct _Card *b){
     struct _Card tmp = *a;
     *a = *b;
@@ -216,6 +242,7 @@ void swap(struct _Card *a, struct _Card *b){
     return;
 }
 
+// correspond the cardnum to cattle
 int cattlecount(int cardnum){
     if(cardnum == 0)
         return 0;
@@ -230,12 +257,14 @@ int cattlecount(int cardnum){
     return 1;
 }
 
+// place card stage anime
 void PlaceCard(SDL_Renderer *renderer){
     int endofrow[4] = {0};
     for(int i = 1; i <= GameSetting.totalplayer; i++){
         qsort((void *)buffer, GameSetting.totalplayer - i + 1, sizeof(buffer[0]), cmp);
         GamePresent(renderer);
-        SDL_Delay(1300);
+        SDL_Delay(GameSetting.speed);
+        printf("Player %d play (%d) to the table.\n", buffer[0].playerid, buffer[0].cardid);
         for(int j = 0; j < 4; j++){
             endofrow[j] = GameTable[j][LastCardPlaceinRow(j)];
         }
@@ -254,6 +283,8 @@ void PlaceCard(SDL_Renderer *renderer){
             GameTable[placed][LastCardPlaceinRow(placed) + 1] = buffer[0].cardid;
         }
         else{
+            printf("Player %d has to take row %d.\n", buffer[0].playerid, placed);
+            printf("Player %d get %d cattles\n", buffer[0].playerid, rowofcattles(placed));
             for(int j = 0; j < 5; j++){
                 player[buffer[0].playerid].cattle += cattlecount(GameTable[placed][j]);
                 GameTable[placed][j] = 0;
@@ -267,12 +298,14 @@ void PlaceCard(SDL_Renderer *renderer){
     GamePresent(renderer);
 }
 
+// check if user left click the area
 bool inrect(SDL_Event event, SDL_Rect rect){
     int x = event.button.x;
     int y = event.button.y;
     return (event.button.button == SDL_BUTTON_LEFT, x > rect.x && y > rect.y && x < rect.x + rect.w && y < rect.y + rect.h);
 }
 
+// return the num of cattles in this row
 int rowofcattles(int row){
     int cattle = 0;
     for(int i = 0; i <= LastCardPlaceinRow(row); i++){
@@ -281,6 +314,7 @@ int rowofcattles(int row){
     return cattle;
 }
 
+// pick row
 void ChooseRow(int id, SDL_Renderer *renderer){
     int row;
     int (*pick)(int) = ai_row[GameSetting.difficulty];
@@ -310,6 +344,8 @@ void ChooseRow(int id, SDL_Renderer *renderer){
             }
         }
     }
+    printf("Player %d choose to take row %d.\n", id, row);
+    printf("Player %d get %d cattles\n", id, rowofcattles(row));
     for(int i = 0; i < 5; i++){
         player[id].cattle += cattlecount(GameTable[row][i]);
         GameTable[row][i] = 0;
@@ -317,11 +353,14 @@ void ChooseRow(int id, SDL_Renderer *renderer){
     GameTable[row][0] = buffer[0].cardid;
 }
 
+// pick card & waiting
 void Game(SDL_Renderer *renderer){
     bool quit = false;
     while (!quit){
         SDL_Event event;
         GamePresent(renderer);
+        if(player[0].totalcard > 0)
+            printf("\nRound %d\n", 10 - player[0].totalcard + 1);
         SDL_FlushEvent(SDL_MOUSEBUTTONDOWN);
         while(statment == 0){
             // printf("Running statment 0\n");
@@ -343,6 +382,7 @@ void Game(SDL_Renderer *renderer){
                                     player[0].card[j] = player[0].card[j + 1];
                                     player[0].card[j + 1] = tmp;
                                 }
+                                printf("Player 0 pick (%d) to play.\n", buffer[0].cardid);
                                 // printf("choose successful\n");
                                 break;
                             }
@@ -363,12 +403,12 @@ void Game(SDL_Renderer *renderer){
             // printf("OUT\n");
         }
         while(statment == 2){
-            // printf("Running statment 2\n");
             void (*pick)(int) = ai[GameSetting.difficulty];
             for(int i = 1; i < GameSetting.totalplayer; i++){
                 pick(i);
             }
             PlaceCard(renderer);
+            // printf("Running statment 2\n");
             statment = 0;
         }
         if(quit)
@@ -377,6 +417,7 @@ void Game(SDL_Renderer *renderer){
     
 }
 
+// level 0 AI
 void GameAI_rnd(int id){
     int choice = rand() % player[id].totalcard;
     buffer[id].cardid = player[id].card[choice];
@@ -393,17 +434,18 @@ int GameAI_rnd_row(int id){
     return choice;
 }
 
+// level 1 AI
 void GameAI_1(int id){
     int choice = -1;
-    for(int i = 0; i < player[i].totalcard; i++){
+    int minv = 2e9;
+    for(int i = 0; i < player[id].totalcard; i++){
         int endofrow[4] = {0};
         for(int j = 0; j < 4; j++){
             endofrow[j] = GameTable[j][LastCardPlaceinRow(j)];
         }
-        int minv = 2e9;
         int placed = -1;
         for(int j = 0; j < 4; j++){
-            if(endofrow[j] < player[id].card[i] && player[i].card[i] - endofrow[j] < minv && LastCardPlaceinRow(j) != 4){
+            if(endofrow[j] < player[id].card[i] && player[id].card[i] - endofrow[j] < minv && LastCardPlaceinRow(j) != 4){
                 minv = player[id].card[id] - endofrow[j];
                 placed = j;
             }
@@ -435,6 +477,55 @@ int GameAI_1_row(int id){
     return choice;
 }
 
+// level 2 AI
+void GameAI_2(int id){
+    int choice = -1;
+    for(int i = player[id].totalcard - 1; i >= 0; i--){
+        int endofrow[4] = {0};
+        for(int j = 0; j < 4; j++){
+            endofrow[j] = GameTable[j][LastCardPlaceinRow(j)];
+        }
+        int placed = -1;
+        for(int j = 0; j < 4; j++){
+            if(endofrow[j] < player[id].card[i] && LastCardPlaceinRow(j) != 4){
+                placed = j;
+            }
+        }
+        if(placed != -1){
+            choice = i;
+        }
+    }
+    if(choice == -1)
+        choice = rand() % player[id].totalcard;
+    buffer[id].cardid = player[id].card[choice];
+    buffer[id].playerid = id;
+    for(int i = choice; i < player[id].totalcard - 1; i++){
+        int tmp = player[id].card[i];
+        player[id].card[i] = player[id].card[i + 1];
+        player[id].card[i + 1] = tmp;
+    }
+    player[id].totalcard--;
+}
+int GameAI_2_row(int id){
+    int minv = 2e9;
+    int maxv = 0;
+    int choice = -1;
+    for(int i = 0; i < 4; i++){
+        if(rowofcattles(i) < minv){
+            choice = i;
+            minv = rowofcattles(i);
+            maxv = GameTable[i][LastCardPlaceinRow(i)];
+        }
+        else if(rowofcattles(i) == minv && GameTable[i][LastCardPlaceinRow(i)] > maxv){
+            choice = i;
+            minv = rowofcattles(i);
+            maxv = GameTable[i][LastCardPlaceinRow(i)];
+        }
+    }
+    return choice;
+}
+
+// a cmp to compare player's rank
 int rankcmp(const void *a, const void *b)
 {
     int c = *(int *)a;
@@ -442,6 +533,7 @@ int rankcmp(const void *a, const void *b)
     return player[c].cattle - player[d].cattle;
 }
 
+// show table to user
 void GamePresent(SDL_Renderer *renderer){
     SDL_RenderCopy(renderer, background, NULL, NULL);
     SDL_Texture *sign;
@@ -482,11 +574,17 @@ void GamePresent(SDL_Renderer *renderer){
     for(int i = 0; i < 10; i++){
         if(buffer[i].cardid != 0){
             int id = buffer[i].playerid;
+            // printf("id = %d\n", id);
             SDL_SetRenderDrawColor(renderer, player[id].color.r, player[id].color.g, player[id].color.b, player[id].color.a);
             SDL_RenderFillRect(renderer, &colorblock[i]);
+            // printf("Fill Rect\n");
+            // printf("Card = %d\n", buffer[i].cardid);
+            // printf("i = %d\n", i);
             SDL_RenderCopy(renderer, card[buffer[i].cardid], NULL, &buffercard[i]);
+            // printf("Buffer render\n");
         }
     }
+    // printf("%d\n", __LINE__);
     SDL_RenderCopy(renderer, yourcardtxt, NULL, &yourcard);
     SDL_RenderCopy(renderer, scoreboardtxt, NULL, &scoreboardtitle);
 
@@ -511,6 +609,7 @@ void GamePresent(SDL_Renderer *renderer){
     SDL_RenderPresent(renderer);
 }
 
+// load all source texture
 void Loadtexture(SDL_Renderer *renderer){
     SDL_Surface *tmp = NULL;
     tmp = IMG_Load("source/table.png");
@@ -555,6 +654,8 @@ void Loadtexture(SDL_Renderer *renderer){
     arrow = SDL_CreateTextureFromSurface(renderer, tmp);
     SDL_FreeSurface(tmp);
 }
+
+// load all card texture
 void LoadCard(SDL_Renderer *renderer){
     for(int i = 1; i <= 104; i++){
         SDL_Surface *tmp = NULL;
@@ -566,6 +667,7 @@ void LoadCard(SDL_Renderer *renderer){
     }
 }
 
+// free all source
 void destroyallsource(){
     SDL_DestroyTexture(background);
     SDL_DestroyTexture(wood);

@@ -17,16 +17,20 @@ int main(){
     int totalplayer = 9;
     scanf("%d", &totalplayer);
     totalplayer++;
-    printf("Please set the difficulties(0 ~ 1).\n");
+    printf("Please set the difficulty(0 ~ 2).\n");
     int difficulty = 0;
     scanf("%d", &difficulty);
     printf("Do you want to use all card(0) or only 1 ~ %d card(1)?\n", totalplayer * 10 + 4);
     int choice = 0;
     scanf("%d", &choice);
+    printf("Please choose the game speed(0 ~ 2)\n");
+    int speed = 0;
+    scanf("%d", &speed);
 
-    GameInit(totalplayer, difficulty, choice);
+    GameInit(totalplayer, difficulty, choice, speed);
     printf("Init completed\n");
-
+    printf("-----------------------\n");
+    printf("Game log :\n");
     SDL_Window *window;
     SDL_Renderer *renderer;
     if(SDL_Init(SDL_INIT_EVERYTHING) != 0){
